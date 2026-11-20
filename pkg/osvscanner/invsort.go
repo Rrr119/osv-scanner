@@ -3,6 +3,7 @@ package osvscanner
 import (
 	"cmp"
 	"fmt"
+	"strings"
 
 	"github.com/google/osv-scalibr/extractor"
 )
@@ -14,7 +15,6 @@ func inventorySort(a, b *extractor.Package) int {
 	aLoc := a.Location.PathOrEmpty()
 	bLoc := b.Location.PathOrEmpty()
 
-	var aExtr, bExtr string
 	var aPURL, bPURL string
 
 	aPURLStruct := a.PURL()
@@ -30,11 +30,14 @@ func inventorySort(a, b *extractor.Package) int {
 
 	aSourceCode := fmt.Sprintf("%v", a.SourceCode)
 	bSourceCode := fmt.Sprintf("%v", b.SourceCode)
+	aExtr := strings.Join(a.Plugins, ",")
+	bExtr := strings.Join(b.Plugins, ",")
 
 	return cmp.Or(
 		cmp.Compare(aLoc, bLoc),
 		cmp.Compare(a.Name, b.Name),
 		cmp.Compare(a.Version, b.Version),
+		cmp.Compare(a.Ecosystem().String(), b.Ecosystem().String()),
 		cmp.Compare(aSourceCode, bSourceCode),
 		cmp.Compare(aExtr, bExtr),
 		cmp.Compare(aPURL, bPURL),

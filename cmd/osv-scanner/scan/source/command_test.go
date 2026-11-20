@@ -1,6 +1,7 @@
 package source_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/google/osv-scanner/v2/cmd/osv-scanner/internal/testcmd"
 	"github.com/google/osv-scanner/v2/internal/testutility"
+	"github.com/google/osv-scanner/v2/pkg/models"
 )
 
 func TestCommand(t *testing.T) {
@@ -1127,6 +1129,53 @@ func TestCommand_LockfileWithExplicitParseAs(t *testing.T) {
 
 			testcmd.RunAndMatchSnapshots(t, tt)
 		})
+	}
+}
+
+func TestCommand_MonorepoMixedLockfilesOffline(t *testing.T) {
+	t.Parallel()
+
+	tc := testcmd.Case{
+		Name: "mixed_lockfiles_are_deduplicated_offline",
+		Args: []string{
+			"",
+			"source",
+			"--offline",
+			"--download-offline-databases",
+			"--recursive",
+			"--format=json",
+			"--all-packages",
+			"./testdata/monorepo",
+		},
+		Exit: 1,
+	}
+
+	stdout, stderr := testcmd.RunAndNormalize(t, tc)
+
+	var results models.VulnerabilityResults
+	if err := json.Unmarshal([]byte(stdout), &results); err != nil {
+		t.Fatalf("failed to parse JSON output: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
+	}
+
+	packageCounts := map[string]int{}
+	for _, source := range results.Results {
+		for _, pkg := range source.Packages {
+			key := fmt.Sprintf("%s/%s@%s", pkg.Package.Ecosystem, pkg.Package.Name, pkg.Package.Version)
+			packageCounts[key]++
+		}
+	}
+	if len(packageCounts) != 3 {
+		t.Errorf("found %d unique packages, want 3; all packages: %v", len(packageCounts), packageCounts)
+	}
+
+	for _, expected := range []string{
+		"npm/ansi-html@0.0.1",
+		"PyPI/requests@2.20.0",
+		"Go/github.com/opencontainers/runc@1.0.1",
+	} {
+		if got := packageCounts[expected]; got != 1 {
+			t.Errorf("package %s appears %d times, want exactly once; all packages: %v", expected, got, packageCounts)
+		}
 	}
 }
 

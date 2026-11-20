@@ -29,6 +29,27 @@ The preceding command will find lockfiles, SBOMs, and git directories in your ta
 
 The recursive flag `-r` or `--recursive` will tell the scanner to search all subdirectories in addition to the specified directory. It can find additional lockfiles, dependencies, and vulnerabilities. If your project has deeply nested subdirectories, a recursive search may take a long time.
 
+## Multi-language monorepos
+
+A single recursive scan of a monorepo discovers supported lockfiles from every
+ecosystem in one pass, for example npm, Python, Go, Rust, and Maven packages in
+the same repository.
+
+```bash
+osv-scanner scan source -r /path/to/monorepo
+```
+
+The same dependency found through multiple lockfiles is reported once. Its
+plugins, licenses, and additional source locations are merged, while packages
+with different versions, ecosystems, or source-code commits remain distinct.
+This also applies to results returned by the local vulnerability database.
+
+To scan a monorepo without network access:
+
+```bash
+osv-scanner scan source -r --offline --download-offline-databases /path/to/monorepo
+```
+
 ## Ignored files
 
 By default, OSV-Scanner will not scan files that are ignored by `.gitignore` files. All recursively scanned files are matched to a git repository (if it exists) and any matching `.gitignore` files within that repository are taken into account.

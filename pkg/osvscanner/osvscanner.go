@@ -153,6 +153,7 @@ func DoScan(actions ScannerActions) (models.VulnerabilityResults, error) {
 	// Retrieve the unscannable packages that were filtered out during annotation
 	// and add them back to the output if ShowAllPackages is enabled.
 	reattachUnscannablePackages(filterAnno, &scanResults.Inventory)
+	dedupInventory(&scanResults.Inventory)
 
 	return finalizeScanResult(scanResults, actions)
 }

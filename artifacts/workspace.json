@@ -1,0 +1,17 @@
+{
+  "root": "/home/dev/feedback/uid28728",
+  "B": "/home/dev/feedback/uid28728",
+  "sha": "dcc8b5cff3085a9b3b6fc50c411be1a16afa406f",
+  "wslDistro": "Ubuntu-26.04",
+  "source": {
+    "owner": "google",
+    "repo": "osv-scanner",
+    "sha": "dcc8b5cff3085a9b3b6fc50c411be1a16afa406f"
+  },
+  "fork": {
+    "owner": "Rrr119",
+    "repo": "osv-scanner",
+    "cloneUrl": "https://github.com/Rrr119/osv-scanner.git"
+  },
+  "at": "2026-11-20T02:00:32.824Z"
+}

@@ -1,7 +1,6 @@
 package osvscanner
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -18,7 +17,6 @@ import (
 	"github.com/google/osv-scalibr/enricher/packagedeprecation"
 	"github.com/google/osv-scalibr/enricher/reachability/java"
 	"github.com/google/osv-scalibr/enricher/vulnmatch/osvlocal"
-	"github.com/google/osv-scalibr/extractor"
 	"github.com/google/osv-scalibr/extractor/filesystem"
 	"github.com/google/osv-scalibr/extractor/filesystem/simplefileapi"
 	"github.com/google/osv-scalibr/fs"
@@ -364,35 +362,15 @@ SBOMLoop:
 			return nil, nil, err
 		}
 
-		slices.SortFunc(sr.Inventory.Packages, inventorySort)
-		pkgMap := make(map[*extractor.Package]*extractor.Package)
-		var uniquePkgs []*extractor.Package
-		if len(sr.Inventory.Packages) > 0 {
-			kept := sr.Inventory.Packages[0]
-			uniquePkgs = append(uniquePkgs, kept)
-			for i := 1; i < len(sr.Inventory.Packages); i++ {
-				current := sr.Inventory.Packages[i]
-				if inventorySort(kept, current) == 0 {
-					pkgMap[current] = kept
-				} else {
-					kept = current
-					uniquePkgs = append(uniquePkgs, kept)
-				}
-			}
-		}
-		sr.Inventory.Packages = uniquePkgs
-
-		for _, vuln := range sr.Inventory.PackageVulns {
-			if kept, ok := pkgMap[vuln.Package]; ok {
-				vuln.Package = kept
-			}
-		}
-		sr.Inventory.PackageVulns = dedupPackageVulns(sr.Inventory.PackageVulns)
-
 		inv.GenericFindings = append(inv.GenericFindings, sr.Inventory.GenericFindings...)
 		inv.Packages = append(inv.Packages, sr.Inventory.Packages...)
 		inv.PackageVulns = append(inv.PackageVulns, sr.Inventory.PackageVulns...)
 	}
+
+	// Packages and vulnerabilities can be reported by multiple lockfiles in a
+	// monorepo. Collapse them after all roots have been scanned so the
+	// deduplication also works across filesystem roots.
+	dedupInventory(&inv)
 
 	testlogger.EndDirScanMarker()
 
@@ -513,48 +491,6 @@ func determineOS() plugin.OS {
 
 		return plugin.OSAny
 	}
-}
-
-type vulnKey struct {
-	pkg    *extractor.Package
-	vulnID string
-}
-
-func dedupPackageVulns(vulns []*inventory.PackageVuln) []*inventory.PackageVuln {
-	if len(vulns) == 0 {
-		return vulns
-	}
-
-	dedupVulns := make(map[vulnKey]*inventory.PackageVuln)
-
-	for _, vv := range vulns {
-		k := vulnKey{vv.Package, vv.Vulnerability.GetId()}
-		if v, ok := dedupVulns[k]; !ok {
-			dedupVulns[k] = vv
-		} else {
-			// Merge plugins
-			for _, p := range vv.Plugins {
-				if !slices.Contains(v.Plugins, p) {
-					v.Plugins = append(v.Plugins, p)
-				}
-			}
-		}
-	}
-
-	result := make([]*inventory.PackageVuln, 0, len(dedupVulns))
-	for _, v := range dedupVulns {
-		result = append(result, v)
-	}
-
-	slices.SortFunc(result, func(a, b *inventory.PackageVuln) int {
-		if a.Package == b.Package {
-			return cmp.Compare(a.Vulnerability.GetId(), b.Vulnerability.GetId())
-		}
-
-		return inventorySort(a.Package, b.Package)
-	})
-
-	return result
 }
 
 func logPluginStatus(statuses []*plugin.Status, specificPaths []string, root string, loadedPlugins []plugin.Plugin) error {
